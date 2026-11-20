@@ -1,11 +1,31 @@
-# Smart Campus Practice 11
+# Smart Campus Room Availability Checker
 
-Optional Explain availability feature using a labelled mock adapter. No provider API call is made; no key, backend or database is required. The existing deterministic checker alone decides availability. Explanations never create a reservation.
+Small React + TypeScript (Vite) app. A student filters rooms by attendees and equipment, picks one room and a time slot, and sees Available or Unavailable with reasons. All rooms and bookings are fictional. The app only checks availability, it does not create or save bookings. No backend, no login, no database, no API keys.
 
-Node.js 18+ and npm. Install with `npm ci`, start with `npm run dev`. Verify with `npm test -- --reporter=verbose`, `npm run lint`, `npm run typecheck`, `npm run build`.
+The "Explain availability" button uses a local mock adapter (no real AI API call). The rule checker always decides the status, the explanation only describes it. On timeout, error or bad output the app shows a deterministic fallback text.
 
-Flow: room/time input -> existing checker -> structured result -> explanation adapter -> response validation -> plain-text UI. On service failure use a deterministic fallback. Classroom failure simulation exposes timeout, API error, missing key and malformed output modes. All are simulated locally.
+## Setup and commands
 
-The existing five-room catalog is preserved. Each explanation concerns only the selected room. Booking rules and fictional fixture data remain unchanged.
+Node.js 18+ and npm (checked with Node 24.19.0 and npm 11.17.0).
 
-Input: roomLabel (1-60 safe label characters), integer start/end within -2880..2880 to allow explanations of invalid intervals, isAvailable boolean, supported reasonCode. The status/reason come from checkAvailability. Output: one explanation string, maximum 360 characters and two sentences. Reject invalid requests before calling the adapter. Mock timeout is 1200 ms. Real-provider integration is outside this submission.
+```
+npm ci                 # install exact versions from package-lock.json
+npm run dev            # local dev server, http://localhost:5173
+npm test               # all Vitest tests
+npm run lint           # ESLint (ts/tsx files)
+npm run typecheck      # tsc --noEmit
+npm run build          # production build to dist/
+npm audit              # dependency check (read only)
+```
+
+## Structure
+
+- `src/booking.js` - booking rules (AC1-AC4), pure functions.
+- `src/lib/` - availability check for one room, room filter, explanation adapter, formatting.
+- `src/data/rooms.ts` - fictional rooms and bookings, fixed current time 08:00.
+- `src/components/` - UI components.
+- `src/*.test.*` - tests (rules, regression, UI in jsdom, explanation).
+
+Agent rules, acceptance criteria and forbidden actions are in `AGENTS.md` (Claude Code reads it through `CLAUDE.md`).
+
+Times are whole minutes after midnight, for example 600 = 10:00.

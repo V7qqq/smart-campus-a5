@@ -1,57 +1,88 @@
 # AGENTS.md
 
-## Project
-Smart Campus room availability checker. One page, one-room checks, fictional sample data only. A student picks a room and a time slot and sees Available / Unavailable with clear reasons.
+Rules for any coding agent (Claude Code, Codex, Bolt, Copilot) working in this repository.
+Read this file fully before any change. If something here is not clear, stop and ask the human.
 
-## Structure
-- `src/booking.js` — pure helper `canBook({ start, end, now, blocked, bookings })` → true/false. Times are minutes after midnight.
-- `src/booking.test.js`, `src/booking.regression.test.js` — Vitest tests (T01–T18 and regression).
-- `src/rooms.test.tsx` — AC/F-rule tests and UI behavior tests (jsdom).
-- `src/lib/bookingLogic.ts` — availability check (`checkAvailability`) and time helpers.
-- `src/lib/filterRooms.ts` — room filter logic (F1-F2).
-- `src/data/rooms.ts` — fictional rooms and bookings (fixtures). `src/lib/sampleData.ts` re-exports them.
-- `src/components/` — UI only (`RoomChecker` and its sub-components).
+## Purpose
+Smart Campus room availability checker. One page, checks one selected room at a time, fictional sample data only.
+A student filters rooms (attendees, equipment), picks a room and a time slot and sees Available / Unavailable with clear reasons.
+Optional "Explain availability" button uses a local mock adapter, it never calls a real AI API.
+The app only checks. It never creates, saves or changes a booking.
 
-## Acceptance criteria (must always be preserved)
-- AC1: reject if start < 0, end > 1440, start >= end, or start <= now.
-- AC2: reject if duration is longer than 120 minutes.
+## Architecture (where things are)
+- `src/booking.js` - core booking rules, pure functions `getBookingViolations()` and `canBook()`. Times are whole minutes after midnight (600 = 10:00). Single source of truth for the rules.
+- `src/lib/bookingLogic.ts` - `checkAvailability()` for one room, `getRoomBookings()`, mapping of rule names to messages for the UI.
+- `src/lib/filterRooms.ts` - room filter (F1, F2). It does not decide availability.
+- `src/lib/explanation.ts` - explanation input/output validation, mock adapter, timeout and deterministic fallback.
+- `src/lib/format.ts` - time formatting helpers. `src/lib/sampleData.ts` only re-exports data.
+- `src/data/rooms.ts` - fictional rooms and bookings (fixtures). Fixed current time 08:00 (480).
+- `src/components/` - UI only. `RoomChecker.tsx` keeps state and calls lib functions, other components only render.
+- Tests: `src/booking.test.js`, `src/booking.regression.test.js` (rules), `src/rooms.test.tsx` (AC/F rules + UI in jsdom), `src/explanation.test.tsx` (explanation T01-T16).
+- Flow: input -> `checkAvailability()` -> `CheckResult` -> ResultPanel / ExplanationPanel.
+
+## Setup
+- Node.js 18+ (checked with Node 24.19.0, npm 11.17.0).
+- Install: `npm ci` (uses package-lock.json, do not use `npm install` for setup).
+- No `.env` and no keys are needed. Nothing in this project needs a secret.
+
+## Safe commands (agent can run without asking)
+- `npm ci`
+- `npm test` (= `vitest run`), `npm test -- --reporter=verbose`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+- `npm run dev` (local only, port 5173), `npm run preview`
+- `npm audit` (read only, NOT `npm audit fix`)
+- `git status`, `git diff`, `git log`, `git show`
+- read-only search in files (grep, find, cat)
+
+## Ask the human first
+- Any change in `package.json` or `package-lock.json` (add, remove or update a dependency, `npm install <pkg>`, `npm audit fix`).
+- Any change in fixture data `src/data/rooms.ts`.
+- Any change of an existing test or assertion.
+- Change of lint, TypeScript or Vite config.
+- Commit. Show the diff first, commit only after approval.
+
+## Forbidden (never do)
+- No secrets: do not create `.env`, do not write keys, tokens or passwords in code, docs or logs.
+- No real personal data. Only fictional rooms and names.
+- No deployment or publishing (Bolt publish, Netlify, Vercel, GitHub Pages and similar), no `git push`, no merge to `main`.
+- No destructive commands: `rm -rf`, `git reset --hard`, `git clean -fd`, `git push --force`, `git checkout -- .`, deleting the `.git` folder.
+- Do not delete, skip (`.skip`, `.only`) or weaken tests to make them pass.
+- No backend, login, database, analytics, Supabase or real AI API calls.
+- Do not change UI look or behavior if the task does not ask for it. No big refactoring "on the way".
+
+## Acceptance criteria (must stay true after every change)
+- AC1: reject if start < 0, end > 1440, start >= end, or start <= now. Start and end must be whole numbers.
+- AC2: reject if duration is longer than 120 minutes (120 is ok, 121 is not).
 - AC3: reject if the room is blocked.
 - AC4: reject overlaps (start < b.end && end > b.start); touching endpoints are allowed.
-- AC5: never mutate booking data; show a clear Available / Unavailable decision.
+- AC5: never mutate booking data; show a clear Available / Unavailable decision; booker names are not shown in the UI.
 - AC6: usable on desktop and mobile with understandable validation feedback.
-
-## Feature rules (must always be preserved)
-- F1: room is shown only if capacity >= attendees.
-- F2: room is shown only if it has ALL selected equipment.
-- F3: a blocked room may be shown but is never Available.
-- F4: when no room matches, show an empty state.
+- F1: room is shown only if capacity >= attendees. F2: room has ALL selected equipment.
+- F3: a blocked room may be shown but is never Available. F4: empty state when no room matches.
 - F5: availability uses only the selected room's bookings.
+- E1: the explanation never changes the main status; on timeout/error/bad output the deterministic fallback is shown.
 
-## Constraints (forbidden scope changes)
-- No backend, login, database, analytics, or saved booking creation.
-- Do not change the UI look or behavior unless asked.
-- Do not change fixture data. Booker names stay hidden in the UI (shown only as "Booked").
-- Do not weaken or delete existing tests or assertions.
-- Fictional room data only. No secrets in code or docs. No external deployment or publishing.
+## Coding conventions
+- TypeScript strict for `.ts/.tsx`. Import with `@/` alias (`@/lib/format`), not deep `../../`.
+- Pure functions for rules, no mutation of input arrays.
+- Rule names (`RuleName` in `src/booking.js`) are mapped to messages only in `src/lib`, not inside components.
+- Small focused changes. Use at most 1-2 justified patterns. No Singleton, Factory or class hierarchies without concrete need.
+  Adapter only for really different shapes (the explanation adapter), Strategy only if there are two real policies.
+- Tailwind classes for styles, lucide-react for icons. No new UI libraries.
 
-## Engineering rules
-- Prefer pure functions and minimal changes.
-- One source of truth for booking rules; the UI only calls it, including for mapping rule names to field messages.
-- Use at most 1–2 justified patterns. Do not add Singleton, Factory, or class hierarchies without a concrete need.
-- Add Adapter only if fixtures truly have different shapes; add Strategy only if there are two real policies.
+## Test expectations and review gates
+- Before a change: run `npm test` and write the exact result (files, passed/failed).
+- After a change: `npm test`, `npm run lint`, `npm run typecheck`, `npm run build` must all pass.
+- Every fixed bug gets a regression test that fails before the fix and passes after.
+- Number of tests can only grow. Old tests stay the same.
+- Do not say a check passed if you did not run it. Write "not run" and why.
+- If no browser is available, say that the UI check was not done.
+- Final report of the agent: changed files with reason, diff, test/lint/typecheck/build output, open risks.
+- Human reviews the diff and approves before commit or merge. Only human can merge or deploy.
 
-## Commands
-- Dev server: `npm run dev`
-- Tests: `npm test` (runs `npx vitest run`)
-- Tests: `npx vitest run`
-- Build: `npm run build`
-- Lint: `npm run lint`
-- Typecheck: `npm run typecheck`
-
-## Verification
-- Run `npx vitest run` before and after every change and report the exact output.
-- Add focused regression tests for any changed rule.
-- Before acceptance, `npm run lint`, `npm run typecheck`, and `npm run build` must all pass.
-- Check the page at desktop and narrow/mobile width. If no browser is available, say so and do not claim the check passed.
-- Report: changed files, rationale for each, test results, and remaining limitations.
-- Agents must not publish, deploy, push or merge. A human reviews the diff and approves before merge.
+## Known gaps (not fixed yet)
+- No CI and no pre-commit hooks, checks are run by hand.
+- ESLint config covers only `**/*.{ts,tsx}` files, so `.js` files are not linted.
+- No formatter (Prettier) config.
