@@ -1,6 +1,6 @@
 import { getBookingViolations, MAX_BOOKING_LENGTH } from '@/booking';
 import type { Violation } from '@/booking';
-import { minutesToLabel } from '@/lib/format';
+import { minutesToLabel, formatTimeLabel } from '@/lib/format';
 
 export interface Room {
   id: string;
@@ -79,6 +79,33 @@ function violationReasons(
   }
 
   return reasons;
+}
+
+export interface FieldErrors {
+  start: string;
+  end: string;
+  duration: string;
+}
+
+/** Maps rule names to the short messages under the time inputs. The UI only renders them. */
+export function getFieldErrors(
+  violations: Violation[],
+  start: number,
+  end: number,
+  currentTime: number
+): FieldErrors {
+  const rules = new Set(violations.map((v) => v.rule));
+  return {
+    start: rules.has('start-not-after-now') ? `Must be after ${formatTimeLabel(currentTime)}` : '',
+    end: rules.has('end-not-after-start')
+      ? 'Must be after start'
+      : rules.has('end-after-midnight')
+        ? 'Cannot exceed 24:00'
+        : '',
+    duration: rules.has('too-long')
+      ? `Max is ${MAX_BOOKING_LENGTH} min — you have ${end - start} min`
+      : '',
+  };
 }
 
 /** Single place for filtering bookings by room. */

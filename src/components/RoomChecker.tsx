@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { CalendarRange, Info, SearchX } from 'lucide-react';
 import type { Room, Booking } from '@/lib/bookingLogic';
-import { checkAvailability, getRoomBookings } from '@/lib/bookingLogic';
+import { checkAvailability, getRoomBookings, getFieldErrors } from '@/lib/bookingLogic';
 import { filterRooms } from '@/lib/filterRooms';
 import { MAX_BOOKING_LENGTH } from '@/booking';
-import { minutesToLabel, formatTimeLabel } from '@/lib/format';
+import { minutesToLabel } from '@/lib/format';
 import { sampleRooms, sampleBookings, getDefaultCurrentTime } from '@/data/rooms';
 import FilterPanel from './FilterPanel';
 import RoomList from './RoomList';
@@ -50,21 +50,8 @@ export default function RoomChecker() {
     [roomId, start, end, currentTime, rooms, bookings]
   );
 
-  const duration = end - start;
   const isAvailable = isRoomVisible && result.decision === 'available';
-
-  const violatedRules = new Set(result.violations.map((v) => v.rule));
-  const startError = violatedRules.has('start-not-after-now')
-    ? `Must be after ${formatTimeLabel(currentTime)}`
-    : '';
-  const endError = violatedRules.has('end-not-after-start')
-    ? 'Must be after start'
-    : violatedRules.has('end-after-midnight')
-      ? 'Cannot exceed 24:00'
-      : '';
-  const durationError = violatedRules.has('too-long')
-    ? `Max is ${MAX_BOOKING_LENGTH} min — you have ${duration} min`
-    : '';
+  const fieldErrors = getFieldErrors(result.violations, start, end, currentTime);
 
   const toggleEquipment = (item: string) => {
     setSelectedEquipment((prev) =>
@@ -116,9 +103,9 @@ export default function RoomChecker() {
               end={end}
               onStartChange={setStart}
               onEndChange={setEnd}
-              startError={startError || undefined}
-              endError={endError || undefined}
-              durationError={durationError || undefined}
+              startError={fieldErrors.start || undefined}
+              endError={fieldErrors.end || undefined}
+              durationError={fieldErrors.duration || undefined}
             />
           </section>
 
