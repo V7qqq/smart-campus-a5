@@ -33,6 +33,7 @@ export { matchesRoomFilter, filterRooms } from '@/lib/filterRooms';
 export type { RoomFilter } from '@/lib/filterRooms';
 
 const INTERVAL_RULES = new Set<Violation['rule']>([
+  'not-whole-minutes',
   'start-before-midnight',
   'end-after-midnight',
   'end-not-after-start',
